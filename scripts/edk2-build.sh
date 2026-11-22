@@ -4,7 +4,7 @@ set -euo pipefail
 TARGET_ARCH=${1:-all}
 BUILD_TYPE=${2:-DEBUG}
 EDK2_DIR=${EDK2_DIR:-/work/edk2}
-EDK2_REF=${EDK2_REF:-}            # 例: edk2-stable202505；空值 = 預設分支
+EDK2_REF=${EDK2_REF-edk2-stable202608}   # 固定版本；設空字串 = 預設分支（master）
 TOOLCHAIN=${TOOLCHAIN:-GCC}       # 舊版 EDK2 可設 TOOLCHAIN=GCC5
 JOBS=${JOBS:-$(nproc)}
 
@@ -19,7 +19,7 @@ cd "$EDK2_DIR"
 set --  # 清空參數，避免 edksetup.sh 把 build 參數當成它的選項
 set +u; source edksetup.sh; set -u
 
-export GCC_BIN=x86_64-linux-gnu-                 # 新版 tools_def: GCC_X64_PREFIX = ENV(GCC_BIN)
+# GCC_BIN 由 Containerfile 的 ENV 設定
 export ${TOOLCHAIN}_X64_PREFIX=x86_64-linux-gnu-   # 舊版 GCC5 相容
 
 build_x64()     { build -a X64     -t "$TOOLCHAIN" -b "$BUILD_TYPE" -n "$JOBS" -p OvmfPkg/OvmfPkgX64.dsc; }
