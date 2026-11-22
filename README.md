@@ -10,6 +10,11 @@
 ## 已驗證環境
 
 - 2026-11-22：EDK2 `edk2-stable202608`，toolchain `GCC`，`DEBUG` 與 `RELEASE` 皆通過 `./run.sh test` 21 項（含 X64、AARCH64 在 QEMU 開機到 UEFI Shell 並執行 `startup.nsh`）
+  - Apple `container` CLI 1.7.1（commit `a15b460`）、Apple Silicon Mac
+  - 基底映像 `ubuntu:24.04`（`sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289`）
+
+> 備註：`Containerfile` 使用 `ubuntu:24.04` tag 而非固定 digest，重建時會取得較新的套件與安全更新，但結果可能與上述驗證時不同。
+> 若需完全可重現，可改為 `FROM docker.io/library/ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289`。
 
 ## 需求
 
@@ -22,6 +27,7 @@
 edk2-container/
 ├── Containerfile          # 映像定義
 ├── run.sh                 # Mac 端入口
+├── LICENSE                # MIT
 ├── scripts/
 │   └── edk2-build.sh      # 容器內的 edk2-build 指令
 ├── tests/
@@ -95,17 +101,31 @@ SKIP_QEMU=1 ./run.sh test      # 跳過 QEMU，只檢查環境與產物
 
 ## 用 QEMU 測試
 
+新版 EDK2（commit `896907b53b`）內建的 UEFI Shell **不會自動開機**，直接用 `-bios` 開機會停在
+`BdsDxe: No bootable option or device was found.`。要進 Shell，用虛擬 FAT 磁碟啟動 build 出的 `Shell.efi`（與 `./run.sh test` 相同做法，已驗證）：
+
 ```bash
 ./run.sh shell
 # 容器內：
-qemu-system-x86_64 -nographic -m 512 \
-  -bios /work/edk2/Build/OvmfX64/DEBUG_GCC/FV/OVMF.fd
+B=/work/edk2/Build
 
-qemu-system-aarch64 -nographic -M virt -cpu cortex-a57 -m 1024 \
-  -bios /work/edk2/Build/ArmVirtQemu-AARCH64/DEBUG_GCC/FV/QEMU_EFI.fd
+# X64
+mkdir -p /tmp/esp/EFI/BOOT && cp $B/OvmfX64/DEBUG_GCC/X64/Shell.efi /tmp/esp/EFI/BOOT/BOOTX64.EFI
+qemu-system-x86_64 -nographic -m 512 -net none \
+  -bios $B/OvmfX64/DEBUG_GCC/FV/OVMF.fd \
+  -drive if=none,id=esp,format=raw,file=fat:rw:/tmp/esp -device virtio-blk-pci,drive=esp
+
+# AARCH64
+mkdir -p /tmp/esp-aa64/EFI/BOOT && cp $B/ArmVirtQemu-AARCH64/DEBUG_GCC/AARCH64/Shell.efi /tmp/esp-aa64/EFI/BOOT/BOOTAA64.EFI
+qemu-system-aarch64 -nographic -M virt -cpu cortex-a57 -m 1024 -net none \
+  -bios $B/ArmVirtQemu-AARCH64/DEBUG_GCC/FV/QEMU_EFI.fd \
+  -drive if=none,id=esp,format=raw,file=fat:rw:/tmp/esp-aa64 -device virtio-blk-pci,drive=esp
 ```
 
-`Ctrl-A` 再按 `X` 離開 QEMU。
+放進 `/tmp/esp` 的其他 `.efi` 檔，在 Shell 內用 `fs0:` 切換後即可執行。
+另一種方式（未驗證）：看到 `Press any key to enter the Boot Manager Menu` 時按任意鍵，從選單選 `EFI Internal Shell`。
+
+`Ctrl-A` 再按 `X` 離開 QEMU。RELEASE 版把路徑中的 `DEBUG_GCC` 換成 `RELEASE_GCC`。
 
 ## edk2-build 環境變數
 
@@ -135,3 +155,9 @@ TOOLCHAIN=GCC5 edk2-build all                  # 容器內
 | 改了 `scripts/edk2-build.sh` 沒生效 | 腳本是在建映像時複製進去的，要重跑 `./run.sh build` |
 | `zsh: permission denied: ./run.sh` | 執行權限遺失，執行 `chmod +x run.sh scripts/edk2-build.sh` |
 | clone / build 在掛載目錄出現權限或檔名錯誤 | macOS 檔案系統不分大小寫且透過共享掛載，可改把原始碼放在容器內部 |
+
+## 授權
+
+本 repo 的腳本與文件以 [MIT License](LICENSE) 授權。
+
+`edk2-build` 下載的 EDK2 原始碼（`work/edk2`，不在本 repo 內）依其自身授權，主要為 BSD-2-Clause-Patent，詳見 EDK2 的 `License.txt`。
