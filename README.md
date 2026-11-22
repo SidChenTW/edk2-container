@@ -1,112 +1,114 @@
 # edk2-container
 
-在 Apple Silicon Mac 上用 [Apple container](https://github.com/apple/container) 建置 [EDK2](https://github.com/tianocore/edk2) UEFI 韌體的開發環境。
+**English** | [繁體中文](README.zh-TW.md)
 
-- 映像：Ubuntu 24.04（arm64 原生）
-- AARCH64：用原生 GCC 編 `ArmVirtPkg/ArmVirtQemu.dsc`
-- X64：用 `x86_64-linux-gnu-` cross GCC 編 `OvmfPkg/OvmfPkgX64.dsc`
-- 內含 `qemu-system-x86_64` / `qemu-system-aarch64` 可直接開機測試
+A development environment for building [EDK2](https://github.com/tianocore/edk2) UEFI firmware on Apple Silicon Macs using [Apple container](https://github.com/apple/container).
 
-## 已驗證環境
+- Image: Ubuntu 24.04 (native arm64)
+- AARCH64: builds `ArmVirtPkg/ArmVirtQemu.dsc` with native GCC
+- X64: builds `OvmfPkg/OvmfPkgX64.dsc` with the `x86_64-linux-gnu-` cross GCC
+- Includes `qemu-system-x86_64` / `qemu-system-aarch64` for boot testing
 
-- 2026-11-22：EDK2 `edk2-stable202608`，toolchain `GCC`，`DEBUG` 與 `RELEASE` 皆通過 `./run.sh test` 21 項（含 X64、AARCH64 在 QEMU 開機到 UEFI Shell 並執行 `startup.nsh`）
-  - Apple `container` CLI 1.7.1（commit `a15b460`）、Apple Silicon Mac
-  - 基底映像 `ubuntu:24.04`（`sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289`）
+## Verified environment
 
-> 備註：`Containerfile` 使用 `ubuntu:24.04` tag 而非固定 digest，重建時會取得較新的套件與安全更新，但結果可能與上述驗證時不同。
-> 若需完全可重現，可改為 `FROM docker.io/library/ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289`。
+- 2026-11-22: EDK2 `edk2-stable202608`, toolchain `GCC`; both `DEBUG` and `RELEASE` pass all 21 checks of `./run.sh test` (including X64 and AARCH64 booting to the UEFI Shell in QEMU and running `startup.nsh`)
+  - Apple `container` CLI 1.7.1 (commit `a15b460`), Apple Silicon Mac
+  - Base image `ubuntu:24.04` (`sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289`)
 
-## 需求
+> Note: `Containerfile` uses the `ubuntu:24.04` tag rather than a fixed digest, so rebuilds pick up newer packages and security updates, but results may differ from the verification above.
+> For fully reproducible builds, change it to `FROM docker.io/library/ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289`.
+
+## Requirements
 
 - Apple Silicon Mac
-- 已安裝 Apple `container` CLI（`container --version` 可執行）
+- Apple `container` CLI installed (`container --version` works)
 
-## 目錄結構
+## Layout
 
 ```
 edk2-container/
-├── Containerfile          # 映像定義
-├── run.sh                 # Mac 端入口
+├── Containerfile          # Image definition
+├── run.sh                 # Entry point on the Mac
 ├── LICENSE                # MIT
 ├── scripts/
-│   └── edk2-build.sh      # 容器內的 edk2-build 指令
+│   └── edk2-build.sh      # edk2-build command inside the container
 ├── tests/
-│   └── env-test.sh        # 環境驗證測試（./run.sh test）
-└── work/                  # 掛載到容器 /work（不進 git）
-    └── edk2/              # EDK2 原始碼與 Build/ 輸出
+│   └── env-test.sh        # Environment validation tests (./run.sh test)
+└── work/                  # Mounted at /work in the container (not in git)
+    └── edk2/              # EDK2 source and Build/ output
 ```
 
-## 快速開始
+## Quick start
 
 ```bash
 container system start
-./run.sh build          # 建立 edk2-dev 映像
-./run.sh make all       # 第一次會 clone EDK2 + 編 BaseTools，再編 X64 與 AARCH64
+./run.sh build          # Build the edk2-dev image
+./run.sh make all       # First run clones EDK2 and builds BaseTools, then builds X64 and AARCH64
 ```
 
-輸出：
+Output:
 
-| 架構 | 檔案 |
+| Arch | File |
 |---|---|
 | X64 | `work/edk2/Build/OvmfX64/DEBUG_GCC/FV/OVMF.fd` |
 | AARCH64 | `work/edk2/Build/ArmVirtQemu-AARCH64/DEBUG_GCC/FV/QEMU_EFI.fd` |
 
-## run.sh 指令
+## run.sh commands
 
-| 指令 | 說明 |
+| Command | Description |
 |---|---|
-| `./run.sh build` | 啟動 container 服務並建立 `edk2-dev` 映像。改過 `Containerfile` 或 `scripts/` 後要重跑 |
-| `./run.sh make [x64\|aarch64\|all] [DEBUG\|RELEASE]` | 開容器跑 `edk2-build`，跑完自動離開。預設 `all DEBUG` |
-| `./run.sh test` | 執行環境驗證測試，有任何 FAIL 時結束碼非 0 |
-| `./run.sh shell` | 開容器進入 bash，手動操作；`exit` 離開後容器自動刪除 |
+| `./run.sh build` | Start the container service and build the `edk2-dev` image. Re-run after changing `Containerfile` or `scripts/` |
+| `./run.sh make [x64\|aarch64\|all] [DEBUG\|RELEASE]` | Run `edk2-build` in a container, then exit. Default: `all DEBUG` |
+| `./run.sh test` | Run the environment validation tests; exits non-zero if anything FAILs |
+| `./run.sh shell` | Open a bash shell in a container; the container is removed on `exit` |
 
-容器以 `--rm` 執行：只有 `/work`（= Mac 上的 `work/`）會保留，容器內其他變更離開即消失。
+Containers run with `--rm`: only `/work` (= `work/` on the Mac) persists; any other changes inside the container are lost on exit.
 
-資源可用環境變數調整（預設 4 CPU / 8 GB）：
+Resources can be adjusted with environment variables (default 4 CPUs / 8 GB):
 
 ```bash
 CPUS=8 MEM=12g ./run.sh make all
 ```
 
-## 在容器內手動編譯
+## Building manually inside the container
 
 ```bash
 ./run.sh shell
-# 容器內：
+# Inside the container:
 cd /work/edk2 && source edksetup.sh
 build -a X64     -t GCC -p MdeModulePkg/MdeModulePkg.dsc
 build -a AARCH64 -t GCC -p MdeModulePkg/MdeModulePkg.dsc
 ```
 
-映像已設定 `GCC_BIN=x86_64-linux-gnu-`（只在 `Containerfile` 設定這一處），X64 不需另外 export。
+The image sets `GCC_BIN=x86_64-linux-gnu-` (only in `Containerfile`), so X64 builds need no extra export.
 
-## 環境驗證測試
+## Environment validation tests
 
 ```bash
-./run.sh test                  # 完整測試（含 QEMU 開機，約數分鐘）
-SKIP_QEMU=1 ./run.sh test      # 跳過 QEMU，只檢查環境與產物
+./run.sh test                  # Full test, including QEMU boot (a few minutes)
+SKIP_QEMU=1 ./run.sh test      # Skip QEMU; check only the environment and build output
 ```
 
-`tests/` 是執行時掛載進容器的，改測試不用重建映像。log 放在 `work/test-logs/`。
+`tests/` is mounted into the container at run time, so changing tests does not require rebuilding the image. Logs go to `work/test-logs/`.
 
-| 區段 | 檢查內容 | 為什麼重要 |
+| Section | Checks | Why it matters |
 |---|---|---|
-| 1. 工具 | gcc、x86_64 cross gcc、nasm、iasl、python3、git、make、QEMU | build 和開機測試的前提 |
-| 2. X64 toolchain | `GCC_BIN`、cross gcc 目標、接受 `-m64 -mno-red-zone` | 回歸測試：避免 `-m64` 錯誤再次出現 |
-| 3. Workspace | EDK2 版本 = 固定的 `EDK2_REF`、`tools_def` 有定義 `TOOLCHAIN`、`edk2-build` 參數不干擾 `edksetup.sh` | 可重現性；回歸測試 GCC5 改名與 Usage 問題 |
-| 4. 產物 | `OVMF.fd`、`QEMU_EFI.fd` 存在且非空 | 交付物 |
-| 5. 開機 | X64 / AARCH64 在 QEMU 從虛擬 FAT 磁碟啟動 build 出的 `Shell.efi`，執行 `startup.nsh` 印出標記後關機 | 能編譯不代表能開機。新版 EDK2 內建 Shell 不會自動開機（commit `896907b53b`），所以改由磁碟啟動 |
+| 1. Tools | gcc, x86_64 cross gcc, nasm, iasl, python3, git, make, QEMU | Prerequisites for building and boot testing |
+| 2. X64 toolchain | `GCC_BIN`, cross gcc target, accepts `-m64 -mno-red-zone` | Regression test: keeps the `-m64` error from coming back |
+| 3. Workspace | EDK2 version = pinned `EDK2_REF`, `tools_def` defines `TOOLCHAIN`, `edk2-build` arguments don't interfere with `edksetup.sh` | Reproducibility; regression tests for the GCC5 rename and the Usage issue |
+| 4. Output | `OVMF.fd` and `QEMU_EFI.fd` exist and are non-empty | The deliverables |
+| 5. Boot | X64 / AARCH64 boot the built `Shell.efi` from a virtual FAT disk in QEMU, run `startup.nsh` to print a marker, then shut down | Building is not booting. Newer EDK2 no longer autoboots the built-in Shell (commit `896907b53b`), so it is booted from disk |
 
-可調變數（Mac 端設定即可轉傳）：`BUILD_TYPE`（預設 `DEBUG`）、`TOOLCHAIN`、`EDK2_REF`、`SKIP_QEMU`、`QEMU_TIMEOUT`（預設 180 秒）。
+Tunable variables (set on the Mac; forwarded automatically): `BUILD_TYPE` (default `DEBUG`), `TOOLCHAIN`, `EDK2_REF`, `SKIP_QEMU`, `QEMU_TIMEOUT` (default 180 seconds).
 
-## 用 QEMU 測試
+## Testing with QEMU
 
-新版 EDK2（commit `896907b53b`）內建的 UEFI Shell **不會自動開機**，直接用 `-bios` 開機會停在
-`BdsDxe: No bootable option or device was found.`。要進 Shell，用虛擬 FAT 磁碟啟動 build 出的 `Shell.efi`（與 `./run.sh test` 相同做法，已驗證）：
+In newer EDK2 (commit `896907b53b`) the built-in UEFI Shell **does not autoboot**; booting with just `-bios` stops at
+`BdsDxe: No bootable option or device was found.`. To get to the Shell, boot the built `Shell.efi` from a virtual FAT disk (the same method as `./run.sh test`, verified):
 
 ```bash
 ./run.sh shell
-# 容器內：
+# Inside the container:
 B=/work/edk2/Build
 
 # X64
@@ -122,42 +124,42 @@ qemu-system-aarch64 -nographic -M virt -cpu cortex-a57 -m 1024 -net none \
   -drive if=none,id=esp,format=raw,file=fat:rw:/tmp/esp-aa64 -device virtio-blk-pci,drive=esp
 ```
 
-放進 `/tmp/esp` 的其他 `.efi` 檔，在 Shell 內用 `fs0:` 切換後即可執行。
-另一種方式（未驗證）：看到 `Press any key to enter the Boot Manager Menu` 時按任意鍵，從選單選 `EFI Internal Shell`。
+Other `.efi` files placed in `/tmp/esp` can be run from the Shell after switching with `fs0:`.
+Alternative (not verified): press any key at `Press any key to enter the Boot Manager Menu` and choose `EFI Internal Shell`.
 
-`Ctrl-A` 再按 `X` 離開 QEMU。RELEASE 版把路徑中的 `DEBUG_GCC` 換成 `RELEASE_GCC`。
+Press `Ctrl-A` then `X` to quit QEMU. For RELEASE builds, replace `DEBUG_GCC` with `RELEASE_GCC` in the paths.
 
-## edk2-build 環境變數
+## edk2-build environment variables
 
-可在 Mac 端設定（`run.sh` 會用 `--env` 轉傳進容器），或在 `./run.sh shell` 內設定：
+Set them on the Mac (`run.sh` forwards them with `--env`) or inside `./run.sh shell`:
 
-| 變數 | 預設 | 說明 |
+| Variable | Default | Description |
 |---|---|---|
-| `EDK2_REF` | `edk2-stable202608` | 指定 tag/branch；設為空字串（`EDK2_REF=`）= 預設分支。只在第一次 clone 時生效 |
-| `TOOLCHAIN` | `GCC` | 舊版 EDK2 用 `GCC5` |
-| `EDK2_DIR` | `/work/edk2` | 原始碼位置 |
-| `JOBS` | `nproc` | 平行編譯數 |
+| `EDK2_REF` | `edk2-stable202608` | Tag/branch to use; an empty string (`EDK2_REF=`) means the default branch. Only applies on the first clone |
+| `TOOLCHAIN` | `GCC` | Use `GCC5` for older EDK2 |
+| `EDK2_DIR` | `/work/edk2` | Source location |
+| `JOBS` | `nproc` | Parallel build jobs |
 
 ```bash
-EDK2_REF=edk2-stable202605 ./run.sh make all   # Mac 端
-TOOLCHAIN=GCC5 edk2-build all                  # 容器內（僅適用仍有 GCC5 的舊版 EDK2）
+EDK2_REF=edk2-stable202605 ./run.sh make all   # On the Mac
+TOOLCHAIN=GCC5 edk2-build all                  # Inside the container (only for older EDK2 that still has GCC5)
 ```
 
-要換 EDK2 版本：刪掉 `work/edk2` 後重跑，或在 `work/edk2` 內自行 `git checkout` + `git submodule update --init --recursive`。
+To switch EDK2 versions: delete `work/edk2` and re-run, or run `git checkout` + `git submodule update --init --recursive` inside `work/edk2`.
 
-## 疑難排解
+## Troubleshooting
 
-| 症狀 | 原因 / 解法 |
+| Symptom | Cause / fix |
 |---|---|
-| `source edksetup.sh` 印出 Usage 就結束 | 腳本參數被傳給 `edksetup.sh`；`edk2-build` 已在 source 前 `set --` 處理 |
-| `Tool chain [GCC5] is not defined` | 新版 EDK2 已改名為 `GCC`（目前預設） |
-| X64 出現 `gcc: unrecognized command-line option '-m64'` | 用到原生 arm64 gcc；確認 `echo $GCC_BIN` 為 `x86_64-linux-gnu-`，必要時重跑 `./run.sh build` |
-| 改了 `scripts/edk2-build.sh` 沒生效 | 腳本是在建映像時複製進去的，要重跑 `./run.sh build` |
-| `zsh: permission denied: ./run.sh` | 執行權限遺失，執行 `chmod +x run.sh scripts/edk2-build.sh` |
-| clone / build 在掛載目錄出現權限或檔名錯誤 | macOS 檔案系統不分大小寫且透過共享掛載，可改把原始碼放在容器內部 |
+| `source edksetup.sh` prints Usage and exits | Script arguments were passed to `edksetup.sh`; `edk2-build` clears them with `set --` before sourcing |
+| `Tool chain [GCC5] is not defined` | Newer EDK2 renamed it to `GCC` (the current default) |
+| X64 fails with `gcc: unrecognized command-line option '-m64'` | The native arm64 gcc was used; check that `echo $GCC_BIN` prints `x86_64-linux-gnu-`, and re-run `./run.sh build` if needed |
+| Changes to `scripts/edk2-build.sh` have no effect | The script is copied in at image build time; re-run `./run.sh build` |
+| `zsh: permission denied: ./run.sh` | Execute permission was lost; run `chmod +x run.sh scripts/edk2-build.sh` |
+| Permission or filename errors during clone/build in the mounted folder | The macOS file system is case-insensitive and shared via a mount; consider keeping the source inside the container |
 
-## 授權
+## License
 
-本 repo 的腳本與文件以 [MIT License](LICENSE) 授權。
+The scripts and documentation in this repo are licensed under the [MIT License](LICENSE).
 
-`edk2-build` 下載的 EDK2 原始碼（`work/edk2`，不在本 repo 內）依其自身授權，主要為 BSD-2-Clause-Patent，詳見 EDK2 的 `License.txt`。
+The EDK2 source downloaded by `edk2-build` (`work/edk2`, not part of this repo) is under its own license, mainly BSD-2-Clause-Patent; see EDK2's `License.txt`.
