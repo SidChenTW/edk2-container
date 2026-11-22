@@ -20,5 +20,5 @@ case "${1:-}" in
   shell) container run "${RUN_OPTS[@]}" "$IMAGE" ;;
   make)  shift; container run "${RUN_OPTS[@]}" "$IMAGE" edk2-build "$@" ;;
   test)  container run "${RUN_OPTS[@]}" --volume "$PWD/tests:/tests" "$IMAGE" bash /tests/env-test.sh ;;
-  *) sed -n '2,7p' "$0"; exit 1 ;;
+  *) sed -n '2,6p' "$0"; exit 1 ;;
 esac

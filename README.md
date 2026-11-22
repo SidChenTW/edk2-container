@@ -140,7 +140,7 @@ qemu-system-aarch64 -nographic -M virt -cpu cortex-a57 -m 1024 -net none \
 
 ```bash
 EDK2_REF=edk2-stable202605 ./run.sh make all   # Mac 端
-TOOLCHAIN=GCC5 edk2-build all                  # 容器內
+TOOLCHAIN=GCC5 edk2-build all                  # 容器內（僅適用仍有 GCC5 的舊版 EDK2）
 ```
 
 要換 EDK2 版本：刪掉 `work/edk2` 後重跑，或在 `work/edk2` 內自行 `git checkout` + `git submodule update --init --recursive`。
